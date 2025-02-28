@@ -1,33 +1,30 @@
 BEGIN
 
-    #โหลดไฟล์ Raw Data และเก็บเป็น list
-    FUNCTION load_raw_data(file_path):
-        OPEN file and read lines
-        RETURN raw_data_list
+    LOAD raw_data FROM "rawdata.txt"
 
-    #สร้างโครงสร้าง Nodes และ Address Mapping เป็น Array Index-Based 
-    FUNCTION build_node_graph():
-        DEFINE nodes, addressIn, addressOut
-        RETURN {node: {"addressIn": addressIn[i], "addressOut": addressOut[i]} FOR i IN range(nodes)}
+    SET node_mapping = MAP()
+    SET nodes = LIST()
+    SET address_in = LIST()     //ส่งจากโหนดไหน
+    SET address_out = LIST()    //รับ
 
-    #เอาข้อมูลจากมาผ่านโหนดจน output
-    FUNCTION process_data(raw_data, graph):
-        FOR each record IN raw_data:
-            SET node = "Input"
-            WHILE node is not "Output":
-                APPEND (record, node, graph[node]["addressOut"]) TO processed_data
-                UPDATE node = graph[node]["addressOut"]
-        RETURN processed_data
+    FOR EACH node IN raw_data["nodes"] DO //วนซ้ำผ่านแต่ละ node ใน raw_data["nodes"]
+        SET node_mapping[node.id] = INDEX(node)
+        ADD node.type TO nodes
+        ADD "" TO address_in    //ค่าเริ่มต้น
+        ADD "" TO address_out
 
-    #ดูว่าส่งข้อมูลไปโหนดไหนต่อ
-    FUNCTION send_data(processed_data):
-        FOR each (data, from_node, to_node) IN processed_data:
-            PRINT "Sending", data, "from", from_node, "to", to_node
+    FOR EACH edge IN raw_data["edges"] DO
+        SET source_index = node_mapping[edge.source]//ดูว่า sourceใน node_mapping  อะไรแล้วเก็บไว้
+        SET target_index = node_mapping[edge.target]
+        SET address_out[source_index] = edge.target//ถ้า data ที่ out ก็หมายถึงของมูลที่มี target ว่าจะไปที่ไหน
+        SET address_in[target_index] = edge.source
 
+    SET Nodes = nodes
+    SET AddressIn = LIST(address_in[node_mapping[n]] FOR EACH n IN node_mapping) 
+    SET AddressOut = LIST(address_out[node_mapping[n]] FOR EACH n IN node_mapping)
 
-    raw_data = load_raw_data("rawdata.txt")
-    graph = build_node_graph()
-    processed_data = process_data(raw_data, graph)
-    send_data(processed_data)
+    DISPLAY "Nodes =", Nodes
+    DISPLAY "AddressIn =", AddressIn
+    DISPLAY "AddressOut =", AddressOut
 
 END
